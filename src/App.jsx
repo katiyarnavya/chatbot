@@ -65,6 +65,7 @@ function App() {
             <div className="header-info">
               <ChatbotIcon />
               <h2 className="logo-txt">Aurobot</h2>
+              {/* <button className="material-symbols-rounded">keyboard_arrow_down</button> */}
             </div>
             
             <div className="toggle-container">
@@ -72,7 +73,7 @@ function App() {
               {darkMode ? <Brightness7 /> : <Brightness4 />}
             </IconButton>
 
-            <button className="material-symbols-rounded">keyboard_arrow_down</button>
+            {/* <button className="material-symbols-rounded">keyboard_arrow_down</button> */}
           </div>
             
           </div>
