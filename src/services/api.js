@@ -1,27 +1,42 @@
 import axios from 'axios';
 
-const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
+const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: BASE_URL,
   headers: {
-    'Content-Type': 'application/json',
-    'x-goog-api-key': API_KEY
+    'Content-Type': 'application/json'
   }
 });
 
 export const sendMessage = async (message, settings) => {
   try {
-    const response = await api.post('', {
+    // Directly use the Gemini 1.5 Flash model
+    const response = await api.post('/models/gemini-1.5-flash:generateContent', {
       contents: [{
+        role: 'user',
         parts: [{
           text: `You are a helpful AI assistant. Your personality: ${settings.botPersonality.style}, tone: ${settings.botPersonality.tone}, response length: ${settings.botPersonality.responseLength}. User message: ${message}`
         }]
       }],
       generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 1000,
+        temperature: settings.temperature || 0.7,
+        maxOutputTokens: settings.maxOutputTokens || 1000,
+      },
+      safetySettings: [
+        {
+          category: 'HARM_CATEGORY_HARASSMENT',
+          threshold: 'BLOCK_MEDIUM_AND_ABOVE'
+        },
+        {
+          category: 'HARM_CATEGORY_HATE_SPEECH',
+          threshold: 'BLOCK_MEDIUM_AND_ABOVE'
+        }
+      ]
+    }, {
+      params: {
+        key: API_KEY
       }
     });
 
@@ -30,19 +45,27 @@ export const sendMessage = async (message, settings) => {
       text: response.data.candidates[0].content.parts[0].text
     };
   } catch (error) {
-    console.error('API Error:', error);
-    throw new Error(error.response?.data?.error?.message || 'Failed to get response from bot');
+    console.error('API Error:', error.response ? error.response.data : error.message);
+
+    // Helpful error handling for deprecated models
+    if (error.response?.data?.error?.message?.includes('deprecated')) {
+      console.warn(
+        'Warning: This model has been deprecated. ' +
+        'Consider switching to the latest recommended model (gemini-1.5-flash).'
+      );
+    }
+
+    throw new Error(
+      error.response?.data?.error?.message ||
+      'Failed to get response from bot'
+    );
   }
 };
 
 export const sendVoiceMessage = async (audioBlob, settings) => {
   try {
-    // First, convert speech to text using Google Cloud Speech-to-Text API
-    const formData = new FormData();
-    formData.append('audio', audioBlob);
-
     const transcriptionResponse = await axios.post(
-      'https://speech.googleapis.com/v1/speech:recognize',
+      `${BASE_URL}/speech:recognize?key=${API_KEY}`,
       {
         config: {
           encoding: 'WEBM_OPUS',
@@ -55,21 +78,21 @@ export const sendVoiceMessage = async (audioBlob, settings) => {
       },
       {
         headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': API_KEY
+          'Content-Type': 'application/json'
         }
       }
     );
 
     const transcribedText = transcriptionResponse.data.results[0].alternatives[0].transcript;
-
-    // Then, get AI response using the transcribed text
     const chatResponse = await sendMessage(transcribedText, settings);
 
     return chatResponse;
   } catch (error) {
-    console.error('Voice API Error:', error);
-    throw new Error(error.response?.data?.error?.message || 'Failed to process voice message');
+    console.error('Voice API Error:', error.response ? error.response.data : error.message);
+    throw new Error(
+      error.response?.data?.error?.message ||
+      'Failed to process voice message'
+    );
   }
 };
 
@@ -86,4 +109,4 @@ const convertBlobToBase64 = (blob) => {
   });
 };
 
-export default api; 
+export default api;
