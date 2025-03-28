@@ -14,7 +14,6 @@ const BotForm = ({ addNewMessage }) => {
       addNewMessage(text);
     }
     console.log("Message Submitted:", text);
-    // console.log("Anshu", e);
     inputRef.current.value = ""; // Clear input after submission
   };
 
